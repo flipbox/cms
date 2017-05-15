@@ -10,8 +10,12 @@ namespace craft\base;
 use Craft;
 use craft\db\Migration;
 use craft\db\MigrationManager;
+use craft\events\RegisterTemplateRootsEvent;
+use craft\helpers\ArrayHelper;
 use craft\i18n\PhpMessageSource;
 use craft\web\Controller;
+use craft\web\View;
+use yii\base\Event;
 use yii\base\Module;
 
 /**
@@ -44,29 +48,42 @@ class Plugin extends Module implements PluginInterface
     /**
      * @inheritdoc
      */
-    public function init()
+    public function __construct($id, $parent = null, array $config = [])
     {
-        parent::init();
+        // Set some things early in case there are any settings, and the settings model's
+        // init() method needs to call Craft::t() or Plugin::getInstance().
 
-        // Set this as the global instance of this plugin class
-        static::setInstance($this);
+        $this->handle = ArrayHelper::remove($config, 'handle', $this->handle);
+        $this->t9nCategory = ArrayHelper::remove($config, 't9nCategory', $this->t9nCategory ?? strtolower($this->handle));
+        $this->sourceLanguage = ArrayHelper::remove($config, 'sourceLanguage', $this->sourceLanguage);
 
-        if ($this->t9nCategory === null) {
-            $this->t9nCategory = strtolower($this->handle);
+        if (($basePath = ArrayHelper::remove($config, 'basePath')) !== null) {
+            $this->setBasePath($basePath);
         }
 
-        // Set up a translation message source for the plugin
+        // Translation category
         $i18n = Craft::$app->getI18n();
-
         /** @noinspection UnSafeIsSetOverArrayInspection */
         if (!isset($i18n->translations[$this->t9nCategory]) && !isset($i18n->translations[$this->t9nCategory.'*'])) {
             $i18n->translations[$this->t9nCategory] = [
                 'class' => PhpMessageSource::class,
                 'sourceLanguage' => $this->sourceLanguage,
-                'basePath' => $this->getBasePath().'/translations',
+                'basePath' => $this->getBasePath().DIRECTORY_SEPARATOR.'translations',
                 'allowOverrides' => true,
             ];
         }
+
+        // Base template directory
+        Event::on(View::class, View::EVENT_REGISTER_CP_TEMPLATE_ROOTS, function(RegisterTemplateRootsEvent $e) {
+            $baseDir = $this->getBasePath().DIRECTORY_SEPARATOR.'templates';
+            $e->roots[$this->id] = $baseDir;
+            $e->roots[$this->handle] = $baseDir;
+        });
+
+        // Set this as the global instance of this plugin class
+        static::setInstance($this);
+
+        parent::__construct($id, $parent, $config);
     }
 
     /**
@@ -164,12 +181,18 @@ class Plugin extends Module implements PluginInterface
      */
     public function getSettingsResponse()
     {
+        $view = Craft::$app->getView();
+        $namespace = $view->getNamespace();
+        $view->setNamespace('settings');
+        $settingsHtml = $this->settingsHtml();
+        $view->setNamespace($namespace);
+
         /** @var Controller $controller */
         $controller = Craft::$app->controller;
 
         return $controller->renderTemplate('settings/plugins/_settings', [
             'plugin' => $this,
-            'settingsHtml' => $this->settingsHtml()
+            'settingsHtml' => $settingsHtml
         ]);
     }
 
