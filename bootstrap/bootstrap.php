@@ -15,8 +15,8 @@ use craft\services\Config;
 // -----------------------------------------------------------------------------
 
 // Validate the app type
-if (!isset($appType) || ($appType !== 'web' && $appType !== 'console')) {
-    throw new Exception('$appType must be set to "web" or "console".');
+if (!isset($appType) || ($appType !== 'rest' && $appType !== 'web' && $appType !== 'console')) {
+    throw new Exception('$appType must be set to "rest" or "web" or "console".');
 }
 
 $findConfig = function($constName, $argName) {
@@ -109,7 +109,7 @@ $environment = $findConfig('CRAFT_ENVIRONMENT', 'env') ?: ($_SERVER['SERVER_NAME
 // Validate permissions on config/ and storage/
 $ensureFolderIsReadable($configPath);
 
-if ($appType === 'web') {
+if ($appType === 'web' || $appType === 'rest') {
     $licensePath = $configPath.'/license.key';
 
     // If license.key doesn't exist yet, make sure the config folder is readable and we can write a temp one.
@@ -209,7 +209,7 @@ $config = ArrayHelper::merge(
     ],
     require "{$srcPath}/config/app/main.php",
     require "{$srcPath}/config/app/{$appType}.php",
-    $configService->getConfigFromFile('app')
+    $configService->getConfigFromFile($appType)
 );
 
 if (defined('CRAFT_SITE') || defined('CRAFT_LOCALE')) {
@@ -218,7 +218,7 @@ if (defined('CRAFT_SITE') || defined('CRAFT_LOCALE')) {
 
 // Initialize the application
 $class = "craft\\{$appType}\\Application";
-/** @var $app craft\web\Application|craft\console\Application */
+/** @var $app craft\rest\Application|craft\web\Application|craft\console\Application */
 $app = new $class($config);
 
 if ($appType === 'web') {
