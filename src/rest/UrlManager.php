@@ -11,7 +11,12 @@ use craft\events\RegisterUrlRulesEvent;
 
 class UrlManager extends \yii\web\UrlManager
 {
+    // Constants
+    // =========================================================================
 
+    /**
+     * @event RegisterUrlRulesEvent The event that is triggered when registering URL rules for the RESTful API.
+     */
     const EVENT_REGISTER_REST_URL_RULES = 'registerRestUrlRules';
 
     /**
@@ -35,19 +40,5 @@ class UrlManager extends \yii\web\UrlManager
         );
 
         return array_filter($event->rules);
-    }
-
-    /**
-     * Parses the user request.
-     * @param Request $request the request component
-     * @return array|bool the route and the associated parameters. The latter is always empty
-     * if [[enablePrettyUrl]] is `false`. `false` is returned if the current request cannot be successfully parsed.
-     */
-    public function parseRequest($request)
-    {
-        if(!$response = parent::parseRequest($request)) {
-            exit;
-        }
-        return $response;
     }
 }
